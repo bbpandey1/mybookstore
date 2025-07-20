@@ -1,0 +1,13 @@
+# Environment
+.env
+
+# VSCode
+.vscode/
+
+# OS
+.DS_Store
+
+# Go build artifacts
+book-service/main
+book-service/*.exe
+book-service/*.out
