@@ -1,0 +1,53 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15
+    container_name: mybookstore-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: bookstore
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    profiles:
+      - dev
+      - qa
+      - staging
+      - prod
+
+  backend:
+    build:
+      context: ./book-service
+    container_name: mybookstore-backend
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+    env_file:
+      - environments/${COMPOSE_PROFILE}/.env
+    profiles:
+      - dev
+      - qa
+      - staging
+      - prod
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: mybookstore-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+    profiles:
+      - dev
+      - qa
+      - staging
+      - prod
+
+volumes:
+  db-data:

@@ -1,0 +1,43 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: ["staging"]
+
+jobs:
+  deploy:
+    name: Build and Push Staging Image
+    runs-on: ubuntu-latest
+
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository_owner }}/mybookstore-backend
+
+    steps:
+      - name: ⬇️ Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🔐 Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🐳 Build image with dual tags
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          docker build -t $REGISTRY/$IMAGE_NAME:staging -t $REGISTRY/$IMAGE_NAME:sha-$SHORT_SHA ./book-service
+
+      - name: 📤 Push images
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          docker push $REGISTRY/$IMAGE_NAME:staging
+          docker push $REGISTRY/$IMAGE_NAME:sha-$SHORT_SHA
+
+      - name: 🌐 Make image public
+        run: |
+          curl -X PATCH https://api.github.com/user/packages/container/mybookstore-backend/visibility \
+          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -d '{"visibility":"public"}'

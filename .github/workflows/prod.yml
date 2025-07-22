@@ -1,0 +1,46 @@
+name: Deploy to Prod
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  deploy:
+    name: Build and Push Prod Image
+    runs-on: ubuntu-latest
+
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository_owner }}/mybookstore-backend
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🐳 Build with tag and commit SHA
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          docker build -t $REGISTRY/$IMAGE_NAME:$TAG_NAME -t $REGISTRY/$IMAGE_NAME:sha-$SHORT_SHA ./book-service
+
+      - name: 📤 Push images
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          docker push $REGISTRY/$IMAGE_NAME:$TAG_NAME
+          docker push $REGISTRY/$IMAGE_NAME:sha-$SHORT_SHA
+
+      - name: 🌐 Make image public
+        run: |
+          curl -X PATCH https://api.github.com/user/packages/container/mybookstore-backend/visibility \
+          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -d '{"visibility":"public"}'

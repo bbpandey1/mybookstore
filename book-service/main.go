@@ -3,23 +3,36 @@ package main
 import (
 	"log"
 	"net/http"
-
-	"mybookstore/book-service/db"
-	"mybookstore/book-service/routes"
+	"os"
 
 	"github.com/joho/godotenv"
+
+	"mybookstore/book-service/db"
+	"mybookstore/book-service/middleware" // 👈 import middleware
+	"mybookstore/book-service/routes"
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("⚠️  No .env file loaded (may be running in Kubernetes)")
+	// Load environment variables from .env (locally only)
+	if err := godotenv.Load(); err != nil {
+		log.Println("⚠️  No .env file found; assuming environment variables are set externally")
 	}
 
+	// Initialize PostgreSQL connection
 	db.Init()
 
-	r := routes.SetupRouter()
+	// Set up router with all routes
+	router := routes.SetupRouter()
 
-	log.Println("📚 Bookstore API running on port 8080")
-	http.ListenAndServe(":8080", r)
+	// Apply CORS middleware
+	handlerWithCORS := middleware.EnableCORS(router)
+
+	// Start the server
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Printf("📚 Book service is running on port %s...\n", port)
+	log.Fatal(http.ListenAndServe(":"+port, handlerWithCORS))
 }
